@@ -9,6 +9,6 @@ fi
 
 source ./sh/env.sh
 
-cd routes/scripts/shared/
+cd scripts/
 
 node "${CMD}" "$@"

@@ -5,7 +5,7 @@ set -e
 cd -- "$( dirname -- "${BASH_SOURCE[0]}" )/../" &> /dev/null
 
 IMAGE_TAG="${IMAGE_TAG:-$(make -s name)}"
-IMAGE_NAME="platform:${IMAGE_TAG}"
+IMAGE_NAME="pos-dashboard:${IMAGE_TAG}"
 PORT="${PORT:-2000}"
 
 make -s version-file

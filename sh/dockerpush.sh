@@ -3,7 +3,7 @@
 cd -- "$( dirname -- "${BASH_SOURCE[0]}" )/../" &> /dev/null
 
 IMAGE_TAG="${IMAGE_TAG:-$(make -s name)}"
-IMAGE_NAME="platform:${IMAGE_TAG}"
+IMAGE_NAME="pos-dashboard:${IMAGE_TAG}"
 DOCKER_LOGIN_SERVER="acclabdocker.azurecr.io"
 DOCKER_IMAGE_URL="${DOCKER_LOGIN_SERVER}/${IMAGE_NAME}"
 
