@@ -2,7 +2,6 @@ help:
 	@echo "The following make targets are available:"
 	@echo "build	build the docker image"
 	@echo "publish	deploys the next version with the current commit"
-	@echo "azlogin	log in to azure container storage"
 	@echo "dockerpush	push the current docker image to azure"
 	@echo "name	generate a unique permanent name for the current commit"
 	@echo "version-file	create the version file"
@@ -10,7 +9,8 @@ help:
 	@echo "next-version	computes the next version"
 	@echo "git-check	ensures no git visible files have been altered"
 	@echo "run-web	runs the webserver"
-	@echo "run-sass	runs the sass compiler"
+	@echo "run-web-build	runs the webserver build"
+	@echo "run-web-preview	runs the webserver build preview"
 
 export LC_ALL=C
 export LANG=C
@@ -37,10 +37,13 @@ git-check:
 	./sh/git_check.sh
 
 run-web:
-	CMD=start ./sh/run.sh
+	CMD=dev ./sh/run.sh
 
-run-sass:
-	CMD=sass ./sh/run.sh
+run-web-build:
+	CMD=build ./sh/run.sh
+
+run-web-preview:
+	CMD=preview ./sh/run.sh
 
 build:
 	./sh/build.sh
