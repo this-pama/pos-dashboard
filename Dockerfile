@@ -17,18 +17,20 @@ RUN apt-get install -y --no-install-recommends \
     zip \
     ffmpeg
 RUN npm install -g npm@9.8
+
+# RUN npm install --global yarn
 WORKDIR /usr/src/app
 COPY package.json .
-COPY package-lock.json .
-RUN npm install
+# COPY package-lock.json .
+COPY yarn.lock .
+RUN yarn install
 COPY . .
-RUN npm run sass-deploy
-RUN npm run service-worker
-RUN npm run build --if-present
-RUN make run-no-service-worker
+# RUN npm run sass-deploy
+RUN yarn build 
 
 ENV HOST=0.0.0.0
-ENV PORT=8080
+ENV PORT=8000
 EXPOSE ${PORT}
+EXPOSE 8080
 
-CMD ["npm", "dev"]
+CMD ["yarn", "dev"]

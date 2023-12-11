@@ -19,3 +19,7 @@ Dockerfile.*
 # Ignore README.md (optional)
 README.md
 
+# yarn.lock
+*.diff
+*.sql
+tmp/
