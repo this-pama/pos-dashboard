@@ -26,6 +26,8 @@ COPY yarn.lock .
 RUN yarn install
 COPY . .
 # RUN npm run sass-deploy
+# RUN yarn lint 
+# RUN yarn test
 RUN yarn build 
 
 ENV HOST=0.0.0.0
