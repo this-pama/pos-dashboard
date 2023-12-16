@@ -56,7 +56,7 @@ jobs:
 
   deploy-staging:
       runs-on: ubuntu-latest
-      needs: build_pipeline
+      needs: deploy-dev
       environment: staging
       steps:
         - name: Deploy to QA
@@ -65,7 +65,7 @@ jobs:
 
   deploy-prod:
       runs-on: ubuntu-latest
-      needs: build_pipeline
+      needs: deploy-staging
       environment: prod
       steps:
         - name: Deploy to Prod
