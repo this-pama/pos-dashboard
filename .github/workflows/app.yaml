@@ -73,7 +73,8 @@ jobs:
         run: |
           terraform init
           terraform apply -auto-approve
-          ansible-playbook playbook.yml
+          ansible-playbook -i aws_ec2.yml playbook.yml
+
 
   # deploy-dev:
   #     runs-on: ubuntu-latest
