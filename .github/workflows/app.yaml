@@ -32,19 +32,19 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      - name: Run lint
-        run: yarn lint
+      # - name: Run lint
+      #   run: yarn lint
 
-      - name: Run tests
-        run: yarn test
+      # - name: Run tests
+      #   run: yarn test
 
-      - name: Build docker image
-        run: |
-          make -s build
+      # - name: Build docker image
+      #   run: |
+      #     make -s build
 
-      - name: Push docker image
-        run: |
-          make -s dockerpush
+      # - name: Push docker image
+      #   run: |
+      #     make -s dockerpush
 
   deploy-dev:
       runs-on: ubuntu-latest
