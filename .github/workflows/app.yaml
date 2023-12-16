@@ -53,47 +53,47 @@ jobs:
       steps:
         - name: Deploy to QA
           run: echo "Deploying to Dev environment"
-      environment:
-        name: development
-        # url: https://your-qa-environment-url
-        reviewers:
-          - this-pama
-          - Ajtruth
-          - itoroita
-          - Ugo-Ignatius
+      # environment:
+      #   name: development
+      #   url: https://your-qa-environment-url
+      #   reviewers:
+      #     - this-pama
+      #     - Ajtruth
+      #     - itoroita
+      #     - Ugo-Ignatius
 
-  deploy-staging:
-      runs-on: ubuntu-latest
-      needs: build
-      environment: staging
-      steps:
-        - name: Deploy to QA
-          run: echo "Deploying to Staging environment"
-      environment:
-        name: staging
-        # url: https://your-qa-environment-url
-        reviewers:
-          - this-pama
-          - Ajtruth
-          - itoroita
-          - Ugo-Ignatius
+  # deploy-staging:
+  #     runs-on: ubuntu-latest
+  #     needs: build
+  #     environment: staging
+  #     steps:
+  #       - name: Deploy to QA
+  #         run: echo "Deploying to Staging environment"
+  #     environment:
+  #       name: staging
+  #       # url: https://your-qa-environment-url
+  #       reviewers:
+  #         - this-pama
+  #         - Ajtruth
+  #         - itoroita
+  #         - Ugo-Ignatius
 
 
-  deploy-prod:
-      runs-on: ubuntu-latest
-      needs: build
-      environment: prod
-      steps:
-        - name: Deploy to Prod
-          run: echo "Deploying to Prod environment"
-      environment:
-        name: prod
-        # url: https://your-qa-environment-url
-        reviewers:
-          - this-pama
-          - Ajtruth
-          - itoroita
-          - Ugo-Ignatius
+  # deploy-prod:
+  #     runs-on: ubuntu-latest
+  #     needs: build
+  #     environment: prod
+  #     steps:
+  #       - name: Deploy to Prod
+  #         run: echo "Deploying to Prod environment"
+  #     environment:
+  #       name: prod
+  #       # url: https://your-qa-environment-url
+  #       reviewers:
+  #         - this-pama
+  #         - Ajtruth
+  #         - itoroita
+  #         - Ugo-Ignatius
 
 
 
