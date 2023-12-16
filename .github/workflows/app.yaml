@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - configuration-management
     tags:
       - 'v*'
 
@@ -45,31 +46,59 @@ jobs:
         run: |
           make -s dockerpush
 
-  deploy-dev:
-      runs-on: ubuntu-latest
-      needs: build_pipeline
-      environment: development
-      steps:
-        - name: Deploy to QA
-          run: echo "Deploying to Dev environment"
+  setup_ec2:
+    runs-on: ubuntu-latest
+    needs: build_pipeline
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-  deploy-staging:
-      runs-on: ubuntu-latest
-      needs: build_pipeline
-      environment: staging
-      steps:
-        - name: Deploy to QA
-          run: echo "Deploying to Staging environment"
+      - name: Set up environment
+        run: |
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> $GITHUB_ENV
+
+      - name: Install Terraform and Ansible
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y unzip
+          wget https://releases.hashicorp.com/terraform/0.14.7/terraform_0.14.7_linux_amd64.zip
+          unzip terraform_0.14.7_linux_amd64.zip
+          sudo mv terraform /usr/local/bin/
+          sudo apt-add-repository --yes --update ppa:ansible/ansible
+          sudo apt-get install -y ansible
+
+      - name: Run Terraform and Ansible
+        run: |
+          terraform init
+          terraform apply -auto-approve
+          ansible-playbook playbook.yml
+
+  # deploy-dev:
+  #     runs-on: ubuntu-latest
+  #     needs: setup_ec2
+  #     environment: development
+  #     steps:
+  #       - name: Deploy to QA
+  #         run: echo "Deploying to Dev environment"
+
+  # deploy-staging:
+  #     runs-on: ubuntu-latest
+  #     needs: setup_ec2
+  #     environment: staging
+  #     steps:
+  #       - name: Deploy to QA
+  #         run: echo "Deploying to Staging environment"
   
 
-  deploy-prod:
-      runs-on: ubuntu-latest
-      needs: build_pipeline
-      environment: prod
-      steps:
-        - name: Deploy to Prod
-          run: echo "Deploying to Prod environment"
-
+  # deploy-prod:
+  #     runs-on: ubuntu-latest
+  #     needs: setup_ec2
+  #     environment: prod
+  #     steps:
+  #       - name: Deploy to Prod
+  #         run: echo "Deploying to Prod environment"
 
 
 
