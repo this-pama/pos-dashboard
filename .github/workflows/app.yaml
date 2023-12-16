@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - pipeline-approval
     tags:
       - 'v*'
 
@@ -32,19 +31,19 @@ jobs:
       - name: Install dependencies
         run: yarn install
 
-      # - name: Run lint
-      #   run: yarn lint
+      - name: Run lint
+        run: yarn lint
 
-      # - name: Run tests
-      #   run: yarn test
+      - name: Run tests
+        run: yarn test
 
-      # - name: Build docker image
-      #   run: |
-      #     make -s build
+      - name: Build docker image
+        run: |
+          make -s build
 
-      # - name: Push docker image
-      #   run: |
-      #     make -s dockerpush
+      - name: Push docker image
+        run: |
+          make -s dockerpush
 
   deploy-dev:
       runs-on: ubuntu-latest
@@ -56,7 +55,7 @@ jobs:
 
   deploy-staging:
       runs-on: ubuntu-latest
-      needs: deploy-dev
+      needs: build_pipeline
       environment: staging
       steps:
         - name: Deploy to QA
@@ -65,7 +64,7 @@ jobs:
 
   deploy-prod:
       runs-on: ubuntu-latest
-      needs: deploy-staging
+      needs: build_pipeline
       environment: prod
       steps:
         - name: Deploy to Prod
