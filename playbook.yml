@@ -1,7 +1,18 @@
 ---
+- hosts: localhost
+  connection: local
+  gather_facts: no
+  tasks:
+    - name: Install required Python libraries
+      pip:
+        name:
+          - botocore
+          - boto3
+        state: present
+
 - hosts: all
   vars:
-    ansible_python_interpreter: /opt/pipx/venvs/ansible-core/bin/python
+    ansible_python_interpreter: /usr/bin/python3
   become: yes
   tasks:
     - name: Update apt cache
