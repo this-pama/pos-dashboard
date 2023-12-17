@@ -64,18 +64,15 @@ jobs:
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v1
-        with:
-          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
-          terraform_version: 1.0.4
+        # with:
+        #   cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+        #   terraform_version: 1.0.4
 
       - name: Terraform Init
         run: terraform init
 
       - name: Terraform Validate
         run: terraform validate
-
-      # - name: Terraform Plan
-      #   run: terraform plan
 
       - name: Upload Configuration
         uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.0.0
