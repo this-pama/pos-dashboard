@@ -95,7 +95,7 @@ resource "aws_instance" "staging_instance" {
   }
 }
 
-resource "aws_instance" "prod_instance" {
+resource "aws_instance" "qa_instance" {
   ami           = var.ami
   instance_type = var.instance_type
   user_data     = var.user_data
@@ -103,6 +103,6 @@ resource "aws_instance" "prod_instance" {
   vpc_security_group_ids = [aws_security_group.devops.id]
 
   tags = {
-    Name = "prod-instance"
+    Name = "qa-instance"
   }
 }
