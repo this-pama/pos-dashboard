@@ -46,44 +46,99 @@ jobs:
       #   run: |
       #     make -s dockerpush
 
-  setup_ec2:
-    runs-on: ubuntu-latest
+  terraform:
+    name: Terraform
     needs: build_pipeline
+    runs-on: ubuntu-latest
+
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v2
 
-      - name: Set up environment
-        run: |
-          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
-          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
-          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> $GITHUB_ENV
-
-      - name: Set up Python
-        uses: actions/setup-python@v2
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
         with:
-          python-version: '3.x'
+          cli_config_credentials_token: ${{ secrets.TF_API_TOKEN }}
+          terraform_version: 1.0.4
 
-      - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install botocore boto3
+      - name: Terraform Init
+        run: terraform init
 
-      - name: Install Terraform and Ansible
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y unzip
-          wget https://releases.hashicorp.com/terraform/0.14.7/terraform_0.14.7_linux_amd64.zip
-          unzip terraform_0.14.7_linux_amd64.zip
-          sudo mv terraform /usr/local/bin/
-          sudo apt-add-repository --yes --update ppa:ansible/ansible
-          sudo apt-get install -y ansible
+      - name: Terraform Validate
+        run: terraform validate
 
-      - name: Run Terraform and Ansible
-        run: |
-          # terraform init
-          # terraform apply -auto-approve
-          ansible-playbook -i aws_ec2.yml playbook.yml
+      - name: Terraform Plan
+        run: terraform plan
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: terraform apply -auto-approve
+
+  # deploy-dev:
+  #     runs-on: ubuntu-latest
+  #     needs: terraform
+  #     environment: development
+  #     steps:
+  #       - name: Deploy to Dev
+  #         run: echo "Deploying to Dev environment"
+
+  # deploy-staging:
+  #     runs-on: ubuntu-latest
+  #     needs: terraform
+  #     environment: staging
+  #     steps:
+  #       - name: Deploy to Staging
+  #         run: echo "Deploying to Staging environment"
+  
+
+  # deploy-prod:
+  #     runs-on: ubuntu-latest
+  #     needs: terraform
+  #     environment: prod
+  #     steps:
+  #       - name: Deploy to Prod
+  #         run: echo "Deploying to Prod environment"
+
+
+
+  # setup_ec2:
+  #   runs-on: ubuntu-latest
+  #   needs: build_pipeline
+  #   steps:
+  #     - name: Checkout code
+  #       uses: actions/checkout@v4
+
+  #     - name: Set up environment
+  #       run: |
+  #         echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> $GITHUB_ENV
+  #         echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> $GITHUB_ENV
+  #         echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> $GITHUB_ENV
+
+  #     - name: Set up Python
+  #       uses: actions/setup-python@v2
+  #       with:
+  #         python-version: '3.x'
+
+  #     - name: Install dependencies
+  #       run: |
+  #         python -m pip install --upgrade pip
+  #         pip install botocore boto3
+
+  #     - name: Install Terraform and Ansible
+  #       run: |
+  #         sudo apt-get update
+  #         sudo apt-get install -y unzip
+  #         wget https://releases.hashicorp.com/terraform/0.14.7/terraform_0.14.7_linux_amd64.zip
+  #         unzip terraform_0.14.7_linux_amd64.zip
+  #         sudo mv terraform /usr/local/bin/
+  #         sudo apt-add-repository --yes --update ppa:ansible/ansible
+  #         sudo apt-get install -y ansible
+
+  #     - name: Run Terraform and Ansible
+  #       run: |
+  #         # terraform init
+  #         # terraform apply -auto-approve
+  #         ansible-playbook -i aws_ec2.yml playbook.yml
 
 
 
@@ -113,62 +168,3 @@ jobs:
   #         run: echo "Deploying to Prod environment"
 
 
-
-  # deploy_staging_pipeline:
-  #   name: Deploy Staging
-  #   needs: build_pipeline
-  #   runs-on: ubuntu-latest
-
-  #   steps:
-  #     - uses: actions/checkout@v4
-
-  #     - name: Fetch tags
-  #       run: git fetch --prune --unshallow --tags
-
-  #     - name: Set env
-  #       run: echo "IMAGE_TAG=$(make -s name)" >> $GITHUB_ENV
-
-  #     - uses: azure/webapps-deploy@v2
-  #       with:
-  #         app-name: 'acclabs-staging'
-  #         publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE_STAGING }}
-  #         images: 'acclabdocker.azurecr.io/platform:${{ env.IMAGE_TAG }}'
-
-  # deploy_tag_pipeline:
-  #   name: Deploy Tag
-  #   needs: build_pipeline
-  #   if: startsWith(github.ref, 'refs/tags/v')
-  #   runs-on: ubuntu-latest
-
-  #   steps:
-  #     - uses: actions/checkout@v4
-
-  #     - name: Fetch tags
-  #       run: git fetch --prune --unshallow --tags
-
-  #     - name: Set env
-  #       run: echo "IMAGE_TAG=$(make -s name)" >> $GITHUB_ENV
-
-  #     - uses: azure/webapps-deploy@v2
-  #       with:
-  #         app-name: 'acclabs-solutionsmapping'
-  #         publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE_SM }}
-  #         images: 'acclabdocker.azurecr.io/platform:${{ env.IMAGE_TAG }}'
-
-  #     - uses: azure/webapps-deploy@v2
-  #       with:
-  #         app-name: 'acclabs-actionlearningplans'
-  #         publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE_AP }}
-  #         images: 'acclabdocker.azurecr.io/platform:${{ env.IMAGE_TAG }}'
-
-  #     - uses: azure/webapps-deploy@v2
-  #       with:
-  #         app-name: 'acclabs-experiments'
-  #         publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE_EXP }}
-  #         images: 'acclabdocker.azurecr.io/platform:${{ env.IMAGE_TAG }}'
-
-  #     - uses: azure/webapps-deploy@v2
-  #       with:
-  #         app-name: 'acclabs-consent'
-  #         publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE_CONSENT }}
-  #         images: 'acclabdocker.azurecr.io/platform:${{ env.IMAGE_TAG }}'
