@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - configuration-management
     tags:
       - 'v*'
 env:
@@ -94,29 +95,60 @@ jobs:
           comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
 
   deploy-dev:
-      runs-on: ubuntu-latest
-      needs: terraform
-      environment: development
-      steps:
-        - name: Deploy to Dev
-          run: echo "Deploying to Dev environment"
+    runs-on: ubuntu-latest
+    needs: terraform
+    environment: dev
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set env
+        run: echo "IMAGE_TAG=$(make -s name)" >> $GITHUB_ENV
+
+      - name: Configure kubectl for Dev
+        run: aws eks --region eu-west-2 update-kubeconfig --name dev-cluster
+
+      - name: Apply Kubernetes Manifests to Dev
+        run: |
+          sed -i "s|pos-dashboard:latest|pos-dashboard:${IMAGE_TAG}|" kubernetes/deployment.yaml
+          kubectl apply -f kubernetes/
+
 
   deploy-staging:
-      runs-on: ubuntu-latest
-      needs: terraform
-      environment: staging
-      steps:
-        - name: Deploy to Staging
-          run: echo "Deploying to Staging environment"
-  
+    runs-on: ubuntu-latest
+    needs: terraform
+    environment: staging
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Set env
+        run: echo "IMAGE_TAG=$(make -s name)" >> $GITHUB_ENV
+
+      - name: Configure kubectl for Staging
+        run: aws eks --region eu-west-2 update-kubeconfig --name staging-cluster
+
+      - name: Apply Kubernetes Manifests to Staging
+        run: |
+          sed -i "s|pos-dashboard:latest|pos-dashboard:${IMAGE_TAG}|" kubernetes/deployment.yaml
+          kubectl apply -f kubernetes/
 
   deploy-prod:
-      runs-on: ubuntu-latest
-      needs: terraform
-      environment: prod
-      steps:
-        - name: Deploy to Prod
-          run: echo "Deploying to Prod environment"
+    runs-on: ubuntu-latest
+    needs: terraform
+    environment: prod
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
 
+      - name: Set env
+        run: echo "IMAGE_TAG=$(make -s name)" >> $GITHUB_ENV
 
+      - name: Configure kubectl for Prod
+        run: aws eks --region eu-west-2 update-kubeconfig --name prod-cluster
+
+      - name: Apply Kubernetes Manifests to Prod
+        run: |
+          sed -i "s|pos-dashboard:latest|pos-dashboard:${IMAGE_TAG}|" kubernetes/deployment.yaml
+          kubectl apply -f kubernetes/
 
