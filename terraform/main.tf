@@ -1,70 +1,11 @@
-provider "aws" {
-  region = "eu-west-2"
-}
+module "eks" {
+  source  = "terraform-aws-modules/eks/aws"
+  version = "~> 19.0"
 
-data "aws_availability_zones" "available" {
-  filter {
-    name   = "opt-in-status"
-    values = ["opt-in-not-required"]
-  }
-}
+  cluster_name    = "my-cluster"
+  cluster_version = "1.27"
 
-module "vpc_dev" {
-  source = "terraform-aws-modules/vpc/aws"
-
-  name                 = "dev-vpc"
-  cidr                 = "10.1.0.0/16"
-  azs                  = slice(data.aws_availability_zones.available.names, 0, 3)
-
-  private_subnets = ["10.1.1.0/24", "10.1.2.0/24", "10.1.3.0/24"]
-  public_subnets  = ["10.1.4.0/24", "10.1.5.0/24", "10.1.6.0/24"]
-
-  enable_nat_gateway   = true
-  single_nat_gateway   = true
-  enable_dns_support   = true
-  enable_dns_hostnames = true
-}
-
-module "vpc_staging" {
-  source = "terraform-aws-modules/vpc/aws"
-
-  name                 = "staging-vpc"
-  cidr                 = "10.2.0.0/16"
-  azs                  = slice(data.aws_availability_zones.available.names, 0, 3)
-
-  private_subnets = ["10.2.1.0/24", "10.2.2.0/24", "10.2.3.0/24"]
-  public_subnets  = ["10.2.4.0/24", "10.2.5.0/24", "10.2.6.0/24"]
-
-  enable_nat_gateway   = true
-  single_nat_gateway   = true
-  enable_dns_support   = true
-  enable_dns_hostnames = true
-}
-
-module "vpc_prod" {
-  source = "terraform-aws-modules/vpc/aws"
-
-  name                 = "prod-vpc"
-  cidr                 = "10.3.0.0/16"
-  azs                  = slice(data.aws_availability_zones.available.names, 0, 3)
-
-  private_subnets = ["10.3.1.0/24", "10.3.2.0/24", "10.3.3.0/24"]
-  public_subnets  = ["10.3.4.0/24", "10.3.5.0/24", "10.3.6.0/24"]
-
-  enable_nat_gateway   = true
-  single_nat_gateway   = true
-  enable_dns_support   = true
-  enable_dns_hostnames = true
-}
-
-module "eks_dev" {
-  source          = "terraform-aws-modules/eks/aws"
-  cluster_name    = "eks-dev-cluster"
-  subnet_ids      = module.vpc_dev.private_subnets
-  vpc_id          = module.vpc_dev.vpc_id
-  cluster_version = "1.21"
-
-  cluster_endpoint_public_access = true
+  cluster_endpoint_public_access  = true
 
   cluster_addons = {
     coredns = {
@@ -78,74 +19,107 @@ module "eks_dev" {
     }
   }
 
-}
+  vpc_id                   = "vpc-1234556abcdef"
+  subnet_ids               = ["subnet-abcde012", "subnet-bcde012a", "subnet-fghi345a"]
+  control_plane_subnet_ids = ["subnet-xyzde987", "subnet-slkjf456", "subnet-qeiru789"]
 
-module "eks_staging" {
-  source          = "terraform-aws-modules/eks/aws"
-  cluster_name    = "eks-staging-cluster"
-  subnet_ids      = module.vpc_staging.private_subnets
-  vpc_id          = module.vpc_staging.vpc_id
-  cluster_version = "1.21"
-
-  cluster_endpoint_public_access = true
-
-  cluster_addons = {
-    coredns = {
-      most_recent = true
-    }
-    kube-proxy = {
-      most_recent = true
-    }
-    vpc-cni = {
-      most_recent = true
+  # Self Managed Node Group(s)
+  self_managed_node_group_defaults = {
+    instance_type                          = "m6i.large"
+    update_launch_template_default_version = true
+    iam_role_additional_policies = {
+      AmazonSSMManagedInstanceCore = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
     }
   }
 
-}
+  self_managed_node_groups = {
+    one = {
+      name         = "mixed-1"
+      max_size     = 5
+      desired_size = 2
 
-module "eks_prod" {
-  source          = "terraform-aws-modules/eks/aws"
-  cluster_name    = "eks-prod-cluster"
-  subnet_ids      = module.vpc_prod.private_subnets
-  vpc_id          = module.vpc_prod.vpc_id
-  cluster_version = "1.21"
+      use_mixed_instances_policy = true
+      mixed_instances_policy = {
+        instances_distribution = {
+          on_demand_base_capacity                  = 0
+          on_demand_percentage_above_base_capacity = 10
+          spot_allocation_strategy                 = "capacity-optimized"
+        }
 
-  cluster_endpoint_public_access = true
-
-  cluster_addons = {
-    coredns = {
-      most_recent = true
-    }
-    kube-proxy = {
-      most_recent = true
-    }
-    vpc-cni = {
-      most_recent = true
+        override = [
+          {
+            instance_type     = "m5.large"
+            weighted_capacity = "1"
+          },
+          {
+            instance_type     = "m6i.large"
+            weighted_capacity = "2"
+          },
+        ]
+      }
     }
   }
-  
-}
 
-output "vpc_dev_id" {
-  value = module.vpc_dev.vpc_id
-}
+  # EKS Managed Node Group(s)
+  eks_managed_node_group_defaults = {
+    instance_types = ["m6i.large", "m5.large", "m5n.large", "m5zn.large"]
+  }
 
-output "vpc_staging_id" {
-  value = module.vpc_staging.vpc_id
-}
+  eks_managed_node_groups = {
+    blue = {}
+    green = {
+      min_size     = 1
+      max_size     = 10
+      desired_size = 1
 
-output "vpc_prod_id" {
-  value = module.vpc_prod.vpc_id
-}
+      instance_types = ["t3.large"]
+      capacity_type  = "SPOT"
+    }
+  }
 
-output "eks_dev_cluster_id" {
-  value = module.eks_dev.cluster_id
-}
+  # Fargate Profile(s)
+  fargate_profiles = {
+    default = {
+      name = "default"
+      selectors = [
+        {
+          namespace = "default"
+        }
+      ]
+    }
+  }
 
-output "eks_staging_cluster_id" {
-  value = module.eks_staging.cluster_id
-}
+  # aws-auth configmap
+  manage_aws_auth_configmap = true
 
-output "eks_prod_cluster_id" {
-  value = module.eks_prod.cluster_id
+  aws_auth_roles = [
+    {
+      rolearn  = "arn:aws:iam::66666666666:role/role1"
+      username = "role1"
+      groups   = ["system:masters"]
+    },
+  ]
+
+  aws_auth_users = [
+    {
+      userarn  = "arn:aws:iam::66666666666:user/user1"
+      username = "user1"
+      groups   = ["system:masters"]
+    },
+    {
+      userarn  = "arn:aws:iam::66666666666:user/user2"
+      username = "user2"
+      groups   = ["system:masters"]
+    },
+  ]
+
+  aws_auth_accounts = [
+    "777777777777",
+    "888888888888",
+  ]
+
+  tags = {
+    Environment = "dev"
+    Terraform   = "true"
+  }
 }
