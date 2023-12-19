@@ -7,9 +7,9 @@ on:
     tags:
       - 'v*'
 env:
-  TF_CLOUD_ORGANIZATION: "this-pama-devops"
+  TF_CLOUD_ORGANIZATION: "${{ secrets.TF_API_ORG_NAME }}"
   TF_API_TOKEN: "${{ secrets.TF_API_TOKEN }}"
-  TF_WORKSPACE: "devops"
+  TF_WORKSPACE: "${{ secrets.TF_WORKSPACE }}"
   CONFIG_DIRECTORY: "./"
 
 jobs:
