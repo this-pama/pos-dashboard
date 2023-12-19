@@ -65,6 +65,19 @@ module "eks_dev" {
   cluster_version = "1.21"
 
   cluster_endpoint_public_access = true
+
+  cluster_addons = {
+    coredns = {
+      most_recent = true
+    }
+    kube-proxy = {
+      most_recent = true
+    }
+    vpc-cni = {
+      most_recent = true
+    }
+  }
+
 }
 
 module "eks_staging" {
@@ -75,6 +88,19 @@ module "eks_staging" {
   cluster_version = "1.21"
 
   cluster_endpoint_public_access = true
+
+  cluster_addons = {
+    coredns = {
+      most_recent = true
+    }
+    kube-proxy = {
+      most_recent = true
+    }
+    vpc-cni = {
+      most_recent = true
+    }
+  }
+
 }
 
 module "eks_prod" {
@@ -85,6 +111,19 @@ module "eks_prod" {
   cluster_version = "1.21"
 
   cluster_endpoint_public_access = true
+
+  cluster_addons = {
+    coredns = {
+      most_recent = true
+    }
+    kube-proxy = {
+      most_recent = true
+    }
+    vpc-cni = {
+      most_recent = true
+    }
+  }
+  
 }
 
 output "vpc_dev_id" {
