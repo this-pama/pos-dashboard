@@ -101,7 +101,7 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: eu-west-2
-      
+
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -126,8 +126,16 @@ jobs:
           workspace: ${{ env.TF_WORKSPACE }}
           configuration_version: ${{ steps.apply-upload.outputs.configuration_version_id }}
 
+      - name: Apply
+        uses: hashicorp/tfc-workflows-github/actions/apply-run@v1.0.0
+        if: fromJSON(steps.apply-run.outputs.payload).data.attributes.actions.IsConfirmable
+        id: apply
+        with:
+          run: ${{ steps.apply-run.outputs.run_id }}
+          comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
+
       - name: Configure kubectl for Dev
-        run: aws eks --region eu-west-2 update-kubeconfig --name dev-cluster
+        run: aws eks --region eu-west-2 update-kubeconfig --name dev-eks-cluster
 
       - name: Apply Kubernetes Manifests to Dev
         run: |
@@ -172,8 +180,16 @@ jobs:
           workspace: ${{ env.TF_WORKSPACE }}
           configuration_version: ${{ steps.apply-upload.outputs.configuration_version_id }}
 
+      - name: Apply
+        uses: hashicorp/tfc-workflows-github/actions/apply-run@v1.0.0
+        if: fromJSON(steps.apply-run.outputs.payload).data.attributes.actions.IsConfirmable
+        id: apply
+        with:
+          run: ${{ steps.apply-run.outputs.run_id }}
+          comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
+
       - name: Configure kubectl for Staging
-        run: aws eks --region eu-west-2 update-kubeconfig --name staging-cluster
+        run: aws eks --region eu-west-2 update-kubeconfig --name staging-eks-cluster
 
       - name: Apply Kubernetes Manifests to Staging
         run: |
@@ -217,8 +233,16 @@ jobs:
           workspace: ${{ env.TF_WORKSPACE }}
           configuration_version: ${{ steps.apply-upload.outputs.configuration_version_id }}
 
+      - name: Apply
+        uses: hashicorp/tfc-workflows-github/actions/apply-run@v1.0.0
+        if: fromJSON(steps.apply-run.outputs.payload).data.attributes.actions.IsConfirmable
+        id: apply
+        with:
+          run: ${{ steps.apply-run.outputs.run_id }}
+          comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
+
       - name: Configure kubectl for Prod
-        run: aws eks --region eu-west-2 update-kubeconfig --name prod-cluster
+        run: aws eks --region eu-west-2 update-kubeconfig --name prod-eks-cluster
 
       - name: Apply Kubernetes Manifests to Prod
         run: |
