@@ -100,7 +100,7 @@ jobs:
       CONFIG_DIRECTORY: "./terraform/dev"
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION: eu-west-2
+      AWS_DEFAULT_REGION: eu-west-1
 
     steps:
       - name: Checkout
@@ -135,7 +135,7 @@ jobs:
           comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
 
       - name: Configure kubectl for Dev
-        run: aws eks --region eu-west-2 update-kubeconfig --name dev-eks-cluster
+        run: aws eks --region eu-west-1 update-kubeconfig --name dev-eks-cluster
 
       - name: Apply Kubernetes Manifests to Dev
         run: |
@@ -154,7 +154,7 @@ jobs:
       CONFIG_DIRECTORY: "./terraform/staging"
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION: eu-west-2
+      AWS_DEFAULT_REGION: eu-west-1
 
     steps:
       - name: Checkout
@@ -189,7 +189,7 @@ jobs:
           comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
 
       - name: Configure kubectl for Staging
-        run: aws eks --region eu-west-2 update-kubeconfig --name staging-eks-cluster
+        run: aws eks --region eu-west-1 update-kubeconfig --name staging-eks-cluster
 
       - name: Apply Kubernetes Manifests to Staging
         run: |
@@ -207,7 +207,7 @@ jobs:
       CONFIG_DIRECTORY: "./terraform/prod"
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      AWS_DEFAULT_REGION: eu-west-2
+      AWS_DEFAULT_REGION: eu-west-1
 
     steps:
       - name: Checkout
@@ -242,7 +242,7 @@ jobs:
           comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
 
       - name: Configure kubectl for Prod
-        run: aws eks --region eu-west-2 update-kubeconfig --name prod-eks-cluster
+        run: aws eks --region eu-west-1 update-kubeconfig --name prod-eks-cluster
 
       - name: Apply Kubernetes Manifests to Prod
         run: |

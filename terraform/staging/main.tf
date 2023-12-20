@@ -20,7 +20,7 @@ data "aws_availability_zones" "available" {}
 locals {
   name            = "staging-eks-cluster"
   cluster_version = "1.27"
-  region          = "eu-west-2"
+  region          = "eu-west-1"
 
   vpc_cidr = "10.2.0.0/16"
   azs      = slice(data.aws_availability_zones.available.names, 0, 3)
