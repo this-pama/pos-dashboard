@@ -490,12 +490,12 @@ resource "aws_autoscaling_group_tag" "cluster_autoscaler_label_tags" {
 
 # Kubernetes Deployment Resource
 resource "kubernetes_manifest" "my_app_deployment" {
-  manifest = file("./kubernetes/deployment.yaml")
+  manifest = file("${path.module}/kubernetes/deployment.yaml")
 }
 
 # Kubernetes Service Resource
 resource "kubernetes_manifest" "my_app_service" {
-  manifest = file("./kubernetes/service.yaml")
+  manifest = file("${path.module}/kubernetes/service.yaml")
 }
 
 # Null Resource to Output External IP
