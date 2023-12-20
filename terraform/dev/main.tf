@@ -488,14 +488,12 @@ resource "aws_autoscaling_group_tag" "cluster_autoscaler_label_tags" {
   }
 }
 
-
 ################################################################################
 # DEPLOY THE KEBERNETES APPS AND SERVICES
 ################################################################################
-variable "IMAGE_TAG" {
-  type        = string
-  default     = "v.1.0-60-g577fffca39"
 
+variable "IMAGE_TAG" {
+  type = string
 }
 
 resource "kubernetes_deployment" "my_app_deployment" {
@@ -522,9 +520,9 @@ resource "kubernetes_deployment" "my_app_deployment" {
       spec {
         container {
           name  = "frontend"
-          image = "pos-dashboard:${IMAGE_TAG}"
+          image = "pos-dashboard:${var.IMAGE_TAG}"
 
-          ports {
+          port {
             container_port = 80
           }
         }
@@ -533,7 +531,7 @@ resource "kubernetes_deployment" "my_app_deployment" {
           name  = "backend"
           image = "thispama/card-server-docker-practice:version1"
 
-          ports {
+          port {
             container_port = 8080
           }
         }
@@ -557,6 +555,12 @@ resource "kubernetes_service" "my_app_service" {
       protocol    = "TCP"
       port        = 80
       target_port = 80
+    }
+
+    port {
+      protocol    = "TCP"
+      port        = 8080
+      target_port = 8080
     }
 
     type = "LoadBalancer"
