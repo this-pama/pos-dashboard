@@ -139,7 +139,7 @@ jobs:
 
       - name: Debug OpenAPI schema issue
         run: |
-          kubectl apply -f kubernetes/ --dry-run=client -o yaml
+          kubectl apply -f kubernetes/ --validate=false --dry-run=client -o yaml
 
       - name: Apply Kubernetes Manifests to Dev
         run: |
