@@ -492,6 +492,7 @@ resource "aws_autoscaling_group_tag" "cluster_autoscaler_label_tags" {
 ################################################################################
 # DEPLOY THE KEBERNETES APPS AND SERVICES
 ################################################################################
+variable "IMAGE_TAG" {}
 
 resource "kubernetes_deployment" "my_app_deployment" {
   metadata {
@@ -517,7 +518,7 @@ resource "kubernetes_deployment" "my_app_deployment" {
       spec {
         container {
           name  = "frontend"
-          image = "pos-dashboard:${IMAGE_TAG}"  # Use a variable for the image tag
+          image = "pos-dashboard:${var.IMAGE_TAG}"  # Use a variable for the image tag
           ports {
             container_port = 80
           }
