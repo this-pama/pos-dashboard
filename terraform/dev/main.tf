@@ -492,7 +492,11 @@ resource "aws_autoscaling_group_tag" "cluster_autoscaler_label_tags" {
 ################################################################################
 # DEPLOY THE KEBERNETES APPS AND SERVICES
 ################################################################################
-variable "IMAGE_TAG" {}
+variable "IMAGE_TAG" {
+  type        = string
+  default     = "v.1.0-60-g577fffca39"
+
+}
 
 resource "kubernetes_deployment" "my_app_deployment" {
   metadata {

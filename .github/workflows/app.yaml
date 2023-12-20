@@ -101,7 +101,7 @@ jobs:
       AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
       AWS_DEFAULT_REGION: eu-west-1
-
+      IMAGE_TAG: IMAGE_TAG=$(make -s name)
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -134,6 +134,8 @@ jobs:
           run: ${{ steps.apply-run.outputs.run_id }}
           comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
           IMAGE_TAG: $(make -s name)
+          env: |
+            IMAGE_TAG: IMAGE_TAG=$(make -s name)
           vars: |
             IMAGE_TAG=${{ env.IMAGE_TAG }}
 
