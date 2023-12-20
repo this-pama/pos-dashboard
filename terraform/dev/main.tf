@@ -555,8 +555,8 @@ resource "kubernetes_service" "my_app_service" {
     port {
       name        = "http"
       protocol    = "TCP"
-      port        = 80
-      target_port = 8000
+      port        = 8000
+      target_port = 80
     }
 
     port {
@@ -586,5 +586,46 @@ resource "kubernetes_service" "postgres_service" {
       port        = 5432
       target_port = 5432
     }
+  }
+}
+
+
+################################################################################
+# PROMETHEUS RESOURCE AND SERVICE
+################################################################################
+
+resource "helm_release" "prometheus" {
+  name       = "prometheus"
+  repository = "https://prometheus-community.github.io/helm-charts"
+  chart      = "prometheus"
+  version    = "14.6.0" 
+
+  namespace  = "default"
+
+  set {
+    name  = "server.retention"
+    value = "30d"
+  }
+
+}
+
+resource "kubernetes_service" "prometheus_service" {
+  metadata {
+    name = "prometheus-service"
+  }
+
+  spec {
+    selector = {
+      app = "prometheus"
+    }
+
+    port {
+      name        = "http"
+      protocol    = "TCP"
+      port        = 9090  # Prometheus default port
+      target_port = 9090
+    }
+
+    type = "LoadBalancer"
   }
 }
