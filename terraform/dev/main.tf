@@ -18,15 +18,15 @@ data "aws_caller_identity" "current" {}
 data "aws_availability_zones" "available" {}
 
 locals {
-  name            = "ex-${replace(basename(path.cwd), "_", "-")}"
+  name            = "dev-eks-cluster"
   cluster_version = "1.27"
-  region          = "eu-west-1"
+  region          = "eu-west-2"
 
   vpc_cidr = "10.0.0.0/16"
   azs      = slice(data.aws_availability_zones.available.names, 0, 3)
 
   tags = {
-    Example    = local.name
+    Name    = local.name
     Environment = "dev"
   }
 }
@@ -207,8 +207,8 @@ module "eks" {
       force_update_version = true
       instance_types       = ["m6i.large", "m5.large", "m5n.large", "m5zn.large"]
       labels = {
-        GithubRepo = "terraform-aws-eks"
-        GithubOrg  = "terraform-aws-modules"
+        GithubRepo = "pos-dashboard"
+        GithubOrg  = "devops-group"
       }
 
       taints = [
