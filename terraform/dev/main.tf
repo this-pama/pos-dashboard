@@ -553,12 +553,14 @@ resource "kubernetes_service" "my_app_service" {
     }
 
     port {
+      name        = "http"
       protocol    = "TCP"
       port        = 80
       target_port = 80
     }
 
     port {
+      name        = "http-alt"
       protocol    = "TCP"
       port        = 8080
       target_port = 8080
@@ -567,6 +569,7 @@ resource "kubernetes_service" "my_app_service" {
     type = "LoadBalancer"
   }
 }
+
 
 resource "kubernetes_service" "postgres_service" {
   metadata {
