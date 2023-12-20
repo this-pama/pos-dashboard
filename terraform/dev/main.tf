@@ -523,17 +523,13 @@ resource "kubernetes_deployment" "my_app_deployment" {
         container {
           name  = "frontend"
           image = "pos-dashboard:${var.IMAGE_TAG}"  # Use a variable for the image tag
-          ports {
-            container_port = 80
-          }
+          port = 80
         }
 
         container {
           name  = "backend"
           image = "thispama/card-server-docker-practice:version1"
-          ports {
-            container_port = 8080
-          }
+          port = 8080
         }
       }
     }
