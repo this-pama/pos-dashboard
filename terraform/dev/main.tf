@@ -487,3 +487,88 @@ resource "aws_autoscaling_group_tag" "cluster_autoscaler_label_tags" {
     propagate_at_launch = false
   }
 }
+
+
+################################################################################
+# DEPLOY THE KEBERNETES APPS AND SERVICES
+################################################################################
+
+resource "kubernetes_deployment" "my_app_deployment" {
+  metadata {
+    name = "my-app-deployment"
+  }
+
+  spec {
+    replicas = 3
+
+    selector {
+      match_labels = {
+        app = "my-app"
+      }
+    }
+
+    template {
+      metadata {
+        labels = {
+          app = "my-app"
+        }
+      }
+
+      spec {
+        container {
+          name  = "frontend"
+          image = "pos-dashboard:${var.IMAGE_TAG}"  # Use a variable for the image tag
+          ports {
+            container_port = 80
+          }
+        }
+
+        container {
+          name  = "backend"
+          image = "thispama/card-server-docker-practice:version1"
+          ports {
+            container_port = 8080
+          }
+        }
+      }
+    }
+  }
+}
+
+resource "kubernetes_service" "my_app_service" {
+  metadata {
+    name = "my-app-service"
+  }
+
+  spec {
+    selector = {
+      app = "my-app"
+    }
+
+    port {
+      protocol    = "TCP"
+      port        = 80
+      target_port = 80
+    }
+
+    type = "LoadBalancer"
+  }
+}
+
+resource "kubernetes_service" "postgres_service" {
+  metadata {
+    name = "postgres-service"
+  }
+
+  spec {
+    selector = {
+      app = "postgres"
+    }
+
+    port {
+      protocol    = "TCP"
+      port        = 5432
+      target_port = 5432
+    }
+  }
+}
