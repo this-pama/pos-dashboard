@@ -133,6 +133,7 @@ jobs:
         with:
           run: ${{ steps.apply-run.outputs.run_id }}
           comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
+          IMAGE_TAG: $(make -s name)
           vars: |
             IMAGE_TAG=${{ env.IMAGE_TAG }}
 

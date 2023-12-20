@@ -517,7 +517,7 @@ resource "kubernetes_deployment" "my_app_deployment" {
       spec {
         container {
           name  = "frontend"
-          image = "pos-dashboard:${var.IMAGE_TAG}"  # Use a variable for the image tag
+          image = "pos-dashboard:${IMAGE_TAG}"  # Use a variable for the image tag
           ports {
             container_port = 80
           }
