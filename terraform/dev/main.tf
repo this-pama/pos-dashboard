@@ -521,7 +521,7 @@ resource "kubernetes_deployment" "my_app_deployment" {
       spec {
         container {
           name  = "frontend"
-          image = "pos-dashboard:${var.IMAGE_TAG}"
+          image = "thispama/pos-dashboard:${var.IMAGE_TAG}"
 
           port {
             container_port = 80
