@@ -524,7 +524,7 @@ resource "kubernetes_deployment" "my_app_deployment" {
           image = "thispama/pos-dashboard:${var.IMAGE_TAG}"
 
           port {
-            container_port = 80
+            container_port = 8000
           }
         }
 
@@ -556,7 +556,7 @@ resource "kubernetes_service" "my_app_service" {
       name        = "http"
       protocol    = "TCP"
       port        = 80
-      target_port = 80
+      target_port = 8000
     }
 
     port {
