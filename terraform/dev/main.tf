@@ -494,7 +494,7 @@ resource "aws_autoscaling_group_tag" "cluster_autoscaler_label_tags" {
 
 variable "IMAGE_TAG" {
   type = string
-  default = "v.1.0-64-g2409f9030e"
+  default = "v.1.0-43-ge4d677d7cb"
 }
 
 resource "kubernetes_deployment" "my_app_deployment" {
