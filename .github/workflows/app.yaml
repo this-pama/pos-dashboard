@@ -134,17 +134,17 @@ jobs:
           run: ${{ steps.apply-run.outputs.run_id }}
           comment: "Apply Run from GitHub Actions CI ${{ github.sha }}"
 
-      - name: Configure kubectl for Dev
-        run: aws eks --region eu-west-1 update-kubeconfig --name dev-eks-cluster
+      # - name: Configure kubectl for Dev
+      #   run: aws eks --region eu-west-1 update-kubeconfig --name dev-eks-cluster
 
-      - name: Debug OpenAPI schema issue
-        run: |
-          kubectl apply -f kubernetes/ --validate=false --dry-run=client -o yaml
+      # - name: Debug OpenAPI schema issue
+      #   run: |
+      #     kubectl apply -f kubernetes/ --validate=false --dry-run=client -o yaml
 
-      - name: Apply Kubernetes Manifests to Dev
-        run: |
-          sed -i "s|pos-dashboard:latest|pos-dashboard:${IMAGE_TAG}|" kubernetes/deployment.yaml
-          kubectl apply -f kubernetes/  --validate=false
+      # - name: Apply Kubernetes Manifests to Dev
+      #   run: |
+      #     sed -i "s|pos-dashboard:latest|pos-dashboard:${IMAGE_TAG}|" kubernetes/deployment.yaml
+      #     kubectl apply -f kubernetes/  --validate=false
 
 
   deploy-staging:

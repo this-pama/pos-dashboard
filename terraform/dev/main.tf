@@ -487,3 +487,31 @@ resource "aws_autoscaling_group_tag" "cluster_autoscaler_label_tags" {
     propagate_at_launch = false
   }
 }
+
+# Kubernetes Deployment Resource
+resource "kubernetes_manifest" "my_app_deployment" {
+  manifest = file("${path.module}/kubernetes/deployment.yaml")
+}
+
+# Kubernetes Service Resource
+resource "kubernetes_manifest" "my_app_service" {
+  manifest = file("${path.module}/kubernetes/service.yaml")
+}
+
+# Null Resource to Output External IP
+resource "null_resource" "output_external_ip" {
+  provisioner "local-exec" {
+    command = <<-EOT
+      echo "external_ip = \$(kubectl get svc my-app-service -o jsonpath='{.status.loadBalancer.ingress[0].hostname}')"
+      echo "external_ip_port = \$(kubectl get svc my-app-service -o jsonpath='{.spec.ports[0].port}')"
+    EOT
+  }
+
+  depends_on = [
+    kubernetes_manifest.my_app_service,
+  ]
+}
+
+output "app_url" {
+  value = "http://${null_resource.output_external_ip.external_ip}:${null_resource.output_external_ip.external_ip_port}/"
+}
