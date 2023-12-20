@@ -29,22 +29,22 @@ jobs:
       - name: Set env
         run: echo "IMAGE_TAG=$(make -s name)" >> $GITHUB_ENV
 
-      # - name: Install dependencies
-      #   run: yarn install
+      - name: Install dependencies
+        run: yarn install
 
-      # - name: Run lint
-      #   run: yarn lint
+      - name: Run lint
+        run: yarn lint
 
-      # - name: Run tests
-      #   run: yarn test
+      - name: Run tests
+        run: yarn test
 
-      # - name: Build docker image
-      #   run: |
-      #     make -s build
+      - name: Build docker image
+        run: |
+          make -s build
 
-      # - name: Push docker image
-      #   run: |
-      #     make -s dockerpush
+      - name: Push docker image
+        run: |
+          make -s dockerpush
 
   # terraform:
   #   name: Terraform
@@ -110,7 +110,7 @@ jobs:
         run: git fetch --prune --unshallow --tags
 
       - name: Set env
-        run: echo "TF_VAR_IMAGE_TAG=\"$(make -s name)\\"" >> $GITHUB_ENV
+        run: echo "TF_VAR_IMAGE_TAG="\"$(make -s name)\"" >> $GITHUB_ENV
 
       - name: Upload Configuration
         uses: hashicorp/tfc-workflows-github/actions/upload-configuration@v1.0.0
