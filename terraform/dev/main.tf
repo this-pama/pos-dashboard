@@ -488,14 +488,69 @@ resource "aws_autoscaling_group_tag" "cluster_autoscaler_label_tags" {
   }
 }
 
+
 # Kubernetes Deployment Resource
 resource "kubernetes_manifest" "my_app_deployment" {
-  manifest = file("${path.module}/kubernetes/deployment.yaml")
+    manifest = <<-YAML
+  apiVersion: apps/v1
+  kind: Deployment
+  metadata:
+    name: my-app-deployment
+  spec:
+    replicas: 3
+    selector:
+      matchLabels:
+        app: my-app
+    template:
+      metadata:
+        labels:
+          app: my-app
+      spec:
+        containers:
+        - name: frontend
+          image: pos-dashboard:${var.IMAGE_TAG}
+          ports:
+          - containerPort: 80
+        - name: backend
+          image: thispama/card-server-docker-practice:version1
+          ports:
+          - containerPort: 8080
+    YAML
 }
 
 # Kubernetes Service Resource
 resource "kubernetes_manifest" "my_app_service" {
-  manifest = file("${path.module}/kubernetes/service.yaml")
+    manifest = <<-YAML
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: my-app-service
+  spec:
+    selector:
+      app: my-app
+    ports:
+      - protocol: TCP
+        port: 80
+        targetPort: 80
+    type: LoadBalancer
+    YAML
+}
+
+# Kubernetes Service for PostgreSQL Resource
+resource "kubernetes_manifest" "postgres_service" {
+    manifest = <<-YAML
+  apiVersion: v1
+  kind: Service
+  metadata:
+    name: postgres-service
+  spec:
+    selector:
+      app: postgres
+    ports:
+      - protocol: TCP
+        port: 5432
+        targetPort: 5432
+    YAML
 }
 
 # Null Resource to Output External IP
