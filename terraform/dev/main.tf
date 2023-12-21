@@ -609,7 +609,7 @@ provider "helm" {
 
 resource "helm_release" "prometheus" {
   name       = "prometheus"
-  repository = "prometheus-community"
+  repository = "https://prometheus-community.github.io/helm-charts"
   chart      = "prometheus"
   version    = "15.0.0"
 
@@ -647,7 +647,6 @@ resource "kubernetes_service" "prometheus_service" {
     type = "LoadBalancer"
   }
 }
-
 
 ################################################################################
 # Create an Application Load Balancer
@@ -731,7 +730,7 @@ resource "aws_lb_listener_rule" "my_app_listener_rule" {
 # Update the Kubernetes service for the frontend application
 resource "kubernetes_service" "my_app_alb_service" {
   metadata {
-    name = "my_app_alb_service"
+    name = "my-app-alb-service"
     annotations = {
       "service.beta.kubernetes.io/aws-load-balancer-type"         = "alb"
       "service.beta.kubernetes.io/aws-load-balancer-ssl-ports"    = "443"
