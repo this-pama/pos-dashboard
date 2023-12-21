@@ -79,85 +79,6 @@ module "eks" {
   }
 
   eks_managed_node_groups = {
-    # Default node group - as provided by AWS EKS
-    default_node_group = {
-      use_custom_launch_template = false
-
-      disk_size = 50
-
-      # Remote access cannot be specified with a launch template
-      remote_access = {
-        ec2_ssh_key               = module.key_pair.key_pair_name
-        source_security_group_ids = [aws_security_group.remote_access.id]
-      }
-    }
-
-    # Default node group - as provided by AWS EKS using Bottlerocket
-    bottlerocket_default = {
-      # By default, the module creates a launch template to ensure tags are propagated to instances, etc.,
-      # so we need to disable it to use the default template provided by the AWS EKS managed node group service
-      use_custom_launch_template = false
-
-      ami_type = "BOTTLEROCKET_x86_64"
-      platform = "bottlerocket"
-    }
-
-    # Adds to the AWS provided user data
-    bottlerocket_add = {
-      ami_type = "BOTTLEROCKET_x86_64"
-      platform = "bottlerocket"
-
-      # This will get added to what AWS provides
-      bootstrap_extra_args = <<-EOT
-        # extra args added
-        [settings.kernel]
-        lockdown = "integrity"
-      EOT
-    }
-
-    # Custom AMI, using module provided bootstrap data
-    bottlerocket_custom = {
-      # Current bottlerocket AMI
-      ami_id   = data.aws_ami.eks_default_bottlerocket.image_id
-      platform = "bottlerocket"
-
-      # Use module user data template to bootstrap
-      enable_bootstrap_user_data = true
-      # This will get added to the template
-      bootstrap_extra_args = <<-EOT
-        # The admin host container provides SSH access and runs with "superpowers".
-        # It is disabled by default, but can be disabled explicitly.
-        [settings.host-containers.admin]
-        enabled = false
-
-        # The control host container provides out-of-band access via SSM.
-        # It is enabled by default, and can be disabled if you do not expect to use SSM.
-        # This could leave you with no way to access the API and change settings on an existing node!
-        [settings.host-containers.control]
-        enabled = true
-
-        # extra args added
-        [settings.kernel]
-        lockdown = "integrity"
-
-        [settings.kubernetes.node-labels]
-
-        [settings.kubernetes.node-taints]
-        dedicated = "experimental:PreferNoSchedule"
-        special = "true:NoSchedule"
-      EOT
-    }
-
-    # Use a custom AMI
-    custom_ami = {
-      ami_type = "AL2_ARM_64"
-      # Current default AMI used by managed node groups - pseudo "custom"
-      ami_id = data.aws_ami.eks_default_arm.image_id
-
-      enable_bootstrap_user_data = true
-
-      instance_types = ["t4g.medium"]
-    }
 
     # Complete
     complete = {
@@ -172,14 +93,6 @@ module "eks" {
 
       ami_id                     = data.aws_ami.eks_default.image_id
       enable_bootstrap_user_data = true
-
-      pre_bootstrap_user_data = <<-EOT
-        export FOO=bar
-      EOT
-
-      post_bootstrap_user_data = <<-EOT
-        echo "you are free little kubelet!"
-      EOT
 
       capacity_type        = "SPOT"
       force_update_version = true
@@ -240,8 +153,6 @@ module "eks" {
         AmazonEC2ContainerRegistryReadOnly = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
         additional                         = aws_iam_policy.node_additional.arn
       }
-
-      target_group_arns = [aws_lb_target_group.my_app_target_group.arn]
 
       tags = {
         ExtraTag = "EKS managed node group complete example"
@@ -417,54 +328,6 @@ data "aws_ami" "eks_default_bottlerocket" {
   }
 }
 
-################################################################################
-# Tags for the ASG to support cluster-autoscaler scale up from 0
-################################################################################
-
-locals {
-
-  # We need to lookup K8s taint effect from the AWS API value
-  taint_effects = {
-    NO_SCHEDULE        = "NoSchedule"
-    NO_EXECUTE         = "NoExecute"
-    PREFER_NO_SCHEDULE = "PreferNoSchedule"
-  }
-
-  cluster_autoscaler_label_tags = merge([
-    for name, group in module.eks.eks_managed_node_groups : {
-      for label_name, label_value in coalesce(group.node_group_labels, {}) : "${name}|label|${label_name}" => {
-        autoscaling_group = group.node_group_autoscaling_group_names[0],
-        key               = "k8s.io/cluster-autoscaler/node-template/label/${label_name}",
-        value             = label_value,
-      }
-    }
-  ]...)
-
-  cluster_autoscaler_taint_tags = merge([
-    for name, group in module.eks.eks_managed_node_groups : {
-      for taint in coalesce(group.node_group_taints, []) : "${name}|taint|${taint.key}" => {
-        autoscaling_group = group.node_group_autoscaling_group_names[0],
-        key               = "k8s.io/cluster-autoscaler/node-template/taint/${taint.key}"
-        value             = "${taint.value}:${local.taint_effects[taint.effect]}"
-      }
-    }
-  ]...)
-
-  cluster_autoscaler_asg_tags = merge(local.cluster_autoscaler_label_tags, local.cluster_autoscaler_taint_tags)
-}
-
-resource "aws_autoscaling_group_tag" "cluster_autoscaler_label_tags" {
-  for_each = local.cluster_autoscaler_asg_tags
-
-  autoscaling_group_name = each.value.autoscaling_group
-
-  tag {
-    key   = each.value.key
-    value = each.value.value
-
-    propagate_at_launch = false
-  }
-}
 
 ################################################################################
 # DEPLOY THE KEBERNETES APPS AND SERVICES
@@ -475,9 +338,24 @@ variable "IMAGE_TAG" {
   default = "v.1.0-43-ge4d677d7cb"
 }
 
+resource "kubernetes_namespace" "pos-dashboard-application-namespace" {
+  metadata {
+      annotations = {
+        name = "pos-dashboard-application"
+      }
+
+      labels = {
+        application = "pos-dashboard-nginx-application"
+      }
+
+      name = "pos-dashboard-application"
+  }
+}
+
 resource "kubernetes_deployment" "my_app_deployment" {
   metadata {
     name = "my-app-deployment"
+    namespace = kubernetes_namespace.pos-dashboard-application-namespace.metadata[0].name
   }
 
   spec {
@@ -523,6 +401,7 @@ resource "kubernetes_deployment" "my_app_deployment" {
 resource "kubernetes_service" "my_app_service" {
   metadata {
     name = "my-app-service"
+    namespace = kubernetes_namespace.pos-dashboard-application-namespace.metadata[0].name
   }
 
   spec {
@@ -552,6 +431,7 @@ resource "kubernetes_service" "my_app_service" {
 resource "kubernetes_service" "postgres_service" {
   metadata {
     name = "postgres-service"
+    namespace = kubernetes_namespace.pos-dashboard-application-namespace.metadata[0].name
   }
 
   spec {
@@ -656,6 +536,7 @@ resource "aws_lb_listener_rule" "my_app_listener_rule" {
 resource "kubernetes_service" "my_app_alb_service" {
   metadata {
     name = "my-app-alb-service"
+    namespace = kubernetes_namespace.pos-dashboard-application-namespace.metadata[0].name
     annotations = {
       "service.beta.kubernetes.io/aws-load-balancer-type"         = "alb"
       "service.beta.kubernetes.io/aws-load-balancer-ssl-ports"    = "443"
