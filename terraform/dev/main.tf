@@ -560,7 +560,7 @@ resource "kubernetes_service" "my_app_service" {
     }
 
     port {
-      name        = "http"
+      name        = "http2"
       protocol    = "TCP"
       port        = 80
       target_port = 8000
