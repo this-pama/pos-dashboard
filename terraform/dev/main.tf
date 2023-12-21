@@ -555,13 +555,6 @@ resource "kubernetes_service" "my_app_service" {
     port {
       name        = "http"
       protocol    = "TCP"
-      port        = 8000
-      target_port = 80
-    }
-
-    port {
-      name        = "http2"
-      protocol    = "TCP"
       port        = 80
       target_port = 8000
     }
@@ -616,17 +609,22 @@ provider "helm" {
 
 resource "helm_release" "prometheus" {
   name       = "prometheus"
-  repository = "https://prometheus-community.github.io/helm-charts"
+  repository = "prometheus-community"
   chart      = "prometheus"
-  version    = "14.6.0" 
+  version    = "15.0.0"
 
-  namespace  = "default"
+  namespace  = "monitoring"
 
-  set {
-    name  = "server.retention"
-    value = "30d"
-  }
+  values = [
+    # Customize values for Prometheus
+    <<-EOT
+    server:
+      retention: "30d"
 
+    alertmanager:
+      enabled: false  # You can enable Alertmanager if needed
+    EOT
+  ]
 }
 
 resource "kubernetes_service" "prometheus_service" {
@@ -636,16 +634,122 @@ resource "kubernetes_service" "prometheus_service" {
 
   spec {
     selector = {
-      app = "prometheus"
+      prometheus = "server"
+    }
+
+    port {
+      name       = "http"
+      protocol   = "TCP"
+      port       = 9090  # Prometheus default port
+      target_port = 9090
+    }
+
+    type = "LoadBalancer"
+  }
+}
+
+
+################################################################################
+# Create an Application Load Balancer
+################################################################################
+
+resource "aws_lb" "my_app_alb" {
+  name               = "my-app-alb"
+  internal           = false
+  load_balancer_type = "application"
+  security_groups    = [aws_security_group.my_app_alb_sg.id]
+  subnets            = module.vpc.public_subnets
+
+  enable_cross_zone_load_balancing   = true
+  enable_http2                       = true
+  idle_timeout                       = 60
+  enable_deletion_protection         = false
+}
+
+# Create a security group for the ALB
+resource "aws_security_group" "my_app_alb_sg" {
+  name_prefix = "my-app-alb"
+  vpc_id      = module.vpc.vpc_id
+
+  ingress {
+    from_port   = 80
+    to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+}
+
+# Create a listener for the ALB
+resource "aws_lb_listener" "my_app_alb_listener" {
+  load_balancer_arn = aws_lb.my_app_alb.arn
+  port              = 80
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      status_code  = "200"
+      message_body = "OK"
+    }
+  }
+}
+
+# Create a target group for the frontend application
+resource "aws_lb_target_group" "my_app_target_group" {
+  name        = "my-app-target-group"
+  port        = 80
+  protocol    = "HTTP"
+  target_type = "instance"
+  vpc_id      = module.vpc.vpc_id
+}
+
+# Associate the target group with the ALB listener
+resource "aws_lb_listener_rule" "my_app_listener_rule" {
+  listener_arn = aws_lb_listener.my_app_alb_listener.arn
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.my_app_target_group.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/"]
+    }
+  }
+}
+
+
+# Update the Kubernetes service for the frontend application
+resource "kubernetes_service" "my_app_alb_service" {
+  metadata {
+    name = "my_app_alb_service"
+    annotations = {
+      "service.beta.kubernetes.io/aws-load-balancer-type"         = "alb"
+      "service.beta.kubernetes.io/aws-load-balancer-ssl-ports"    = "443"
+      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol" = "http"
+      "service.beta.kubernetes.io/aws-load-balancer-ssl-cert"     =  base64decode(module.eks.cluster_certificate_authority_data)
+    }
+  }
+
+  spec {
+    selector = {
+      app = "my-app"
     }
 
     port {
       name        = "http"
       protocol    = "TCP"
-      port        = 9090  # Prometheus default port
-      target_port = 9090
+      port        = 80
+      target_port = 8000
     }
-
-    type = "LoadBalancer"
   }
 }
