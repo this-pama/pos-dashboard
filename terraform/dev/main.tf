@@ -44,13 +44,6 @@ module "eks" {
 
   # IPV6
   cluster_ip_family = "ipv6"
-
-  # We are using the IRSA created below for permissions
-  # However, we have to deploy with the policy attached FIRST (when creating a fresh cluster)
-  # and then turn this off after the cluster/node group is created. Without this initial policy,
-  # the VPC CNI fails to assign IPs and nodes cannot join the cluster
-  # See https://github.com/aws/containers-roadmap/issues/1666 for more context
-  # TODO - remove this policy once AWS releases a managed version similar to AmazonEKS_CNI_Policy (IPv4)
   create_cni_ipv6_iam_policy = true
 
   cluster_addons = {
@@ -66,7 +59,6 @@ module "eks" {
       service_account_role_arn = module.vpc_cni_irsa.iam_role_arn
       configuration_values = jsonencode({
         env = {
-          # Reference docs https://docs.aws.amazon.com/eks/latest/userguide/cni-increase-ip-addresses.html
           ENABLE_PREFIX_DELEGATION = "true"
           WARM_PREFIX_TARGET       = "1"
         }
@@ -83,20 +75,12 @@ module "eks" {
   eks_managed_node_group_defaults = {
     ami_type       = "AL2_x86_64"
     instance_types = ["m6i.large", "m5.large", "m5n.large", "m5zn.large"]
-
-    # We are using the IRSA created below for permissions
-    # However, we have to deploy with the policy attached FIRST (when creating a fresh cluster)
-    # and then turn this off after the cluster/node group is created. Without this initial policy,
-    # the VPC CNI fails to assign IPs and nodes cannot join the cluster
-    # See https://github.com/aws/containers-roadmap/issues/1666 for more context
     iam_role_attach_cni_policy = true
   }
 
   eks_managed_node_groups = {
     # Default node group - as provided by AWS EKS
     default_node_group = {
-      # By default, the module creates a launch template to ensure tags are propagated to instances, etc.,
-      # so we need to disable it to use the default template provided by the AWS EKS managed node group service
       use_custom_launch_template = false
 
       disk_size = 50
@@ -157,8 +141,6 @@ module "eks" {
         lockdown = "integrity"
 
         [settings.kubernetes.node-labels]
-        label1 = "foo"
-        label2 = "bar"
 
         [settings.kubernetes.node-taints]
         dedicated = "experimental:PreferNoSchedule"
@@ -172,10 +154,6 @@ module "eks" {
       # Current default AMI used by managed node groups - pseudo "custom"
       ami_id = data.aws_ami.eks_default_arm.image_id
 
-      # This will ensure the bootstrap user data is used to join the node
-      # By default, EKS managed node groups will not append bootstrap script;
-      # this adds it back in using the default template provided by the module
-      # Note: this assumes the AMI provided is an EKS optimized AMI derivative
       enable_bootstrap_user_data = true
 
       instance_types = ["t4g.medium"]
@@ -263,7 +241,7 @@ module "eks" {
         additional                         = aws_iam_policy.node_additional.arn
       }
 
-      
+      target_group_arns = [aws_lb_target_group.my_app_target_group.arn]
 
       tags = {
         ExtraTag = "EKS managed node group complete example"
@@ -503,7 +481,7 @@ resource "kubernetes_deployment" "my_app_deployment" {
   }
 
   spec {
-    replicas = 3
+    replicas = 2
 
     selector {
       match_labels = {
@@ -594,59 +572,6 @@ resource "kubernetes_service" "postgres_service" {
 # PROMETHEUS RESOURCE AND SERVICE
 ################################################################################
 
-provider "helm" {
-  kubernetes {
-    host                   = module.eks.cluster_endpoint
-    cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-
-    exec {
-      api_version = "client.authentication.k8s.io/v1beta1"
-      command     = "aws"
-      args        = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
-    }
-  }
-}
-
-resource "helm_release" "prometheus" {
-  name       = "prometheus"
-  repository = "https://prometheus-community.github.io/helm-charts"
-  chart      = "prometheus"
-  version    = "15.0.0"
-
-  namespace  = "monitoring"
-
-  values = [
-    # Customize values for Prometheus
-    <<-EOT
-    server:
-      retention: "30d"
-
-    alertmanager:
-      enabled: false  # You can enable Alertmanager if needed
-    EOT
-  ]
-}
-
-resource "kubernetes_service" "prometheus_service" {
-  metadata {
-    name = "prometheus-service"
-  }
-
-  spec {
-    selector = {
-      prometheus = "server"
-    }
-
-    port {
-      name       = "http"
-      protocol   = "TCP"
-      port       = 9090  # Prometheus default port
-      target_port = 9090
-    }
-
-    type = "LoadBalancer"
-  }
-}
 
 ################################################################################
 # Create an Application Load Balancer
@@ -721,7 +646,7 @@ resource "aws_lb_listener_rule" "my_app_listener_rule" {
 
   condition {
     path_pattern {
-      values = ["/"]
+      values = ["/", "/app"]
     }
   }
 }
@@ -735,7 +660,7 @@ resource "kubernetes_service" "my_app_alb_service" {
       "service.beta.kubernetes.io/aws-load-balancer-type"         = "alb"
       "service.beta.kubernetes.io/aws-load-balancer-ssl-ports"    = "443"
       "service.beta.kubernetes.io/aws-load-balancer-backend-protocol" = "http"
-      "service.beta.kubernetes.io/aws-load-balancer-ssl-cert"     =  base64decode(module.eks.cluster_certificate_authority_data)
+      # "service.beta.kubernetes.io/aws-load-balancer-ssl-cert"     =  base64decode(module.eks.cluster_certificate_authority_data)
     }
   }
 
