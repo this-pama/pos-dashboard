@@ -35,7 +35,7 @@ jobs:
       - name: Run lint
         run: yarn lint
 
-      - name: Run tests
+      - name: Run Unit testing
         run: yarn test
 
       - name: Build docker image
