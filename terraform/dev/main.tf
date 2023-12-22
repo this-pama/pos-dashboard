@@ -1,361 +1,137 @@
-provider "aws" {
-  region = local.region
-}
-
-provider "kubernetes" {
-  host                   = module.eks.cluster_endpoint
-  cluster_ca_certificate = base64decode(module.eks.cluster_certificate_authority_data)
-
-  exec {
-    api_version = "client.authentication.k8s.io/v1beta1"
-    command     = "aws"
-    # This requires the awscli to be installed locally where Terraform is executed
-    args = ["eks", "get-token", "--cluster-name", module.eks.cluster_name]
-  }
-}
-
-data "aws_caller_identity" "current" {}
-data "aws_availability_zones" "available" {}
-
-locals {
-  name            = "dev-eks-cluster"
-  cluster_version = "1.27"
-  region          = "eu-west-1"
-
-  vpc_cidr = "10.0.0.0/16"
-  azs      = slice(data.aws_availability_zones.available.names, 0, 3)
-
-  tags = {
-    Name    = local.name
-    Environment = "dev"
-  }
-}
-
 ################################################################################
-# EKS Module
-################################################################################
-
-module "eks" {
-  source = "terraform-aws-modules/eks/aws"
-
-  cluster_name                   = local.name
-  cluster_version                = local.cluster_version
-  cluster_endpoint_public_access = true
-
-  # IPV6
-  cluster_ip_family = "ipv6"
-  create_cni_ipv6_iam_policy = true
-
-  cluster_addons = {
-    coredns = {
-      most_recent = true
-    }
-    kube-proxy = {
-      most_recent = true
-    }
-    vpc-cni = {
-      most_recent              = true
-      before_compute           = true
-      service_account_role_arn = module.vpc_cni_irsa.iam_role_arn
-      configuration_values = jsonencode({
-        env = {
-          ENABLE_PREFIX_DELEGATION = "true"
-          WARM_PREFIX_TARGET       = "1"
-        }
-      })
-    }
-  }
-
-  vpc_id                   = module.vpc.vpc_id
-  subnet_ids               = module.vpc.private_subnets
-  control_plane_subnet_ids = module.vpc.intra_subnets
-
-  manage_aws_auth_configmap = true
-
-  eks_managed_node_group_defaults = {
-    ami_type       = "AL2_x86_64"
-    instance_types = ["m6i.large", "m5.large", "m5n.large", "m5zn.large"]
-    iam_role_attach_cni_policy = true
-  }
-
-  eks_managed_node_groups = {
-
-    # Complete
-    complete = {
-      name            = "complete-eks-mng"
-      use_name_prefix = true
-
-      subnet_ids = module.vpc.private_subnets
-
-      min_size     = 1
-      max_size     = 7
-      desired_size = 1
-
-      ami_id                     = data.aws_ami.eks_default.image_id
-      enable_bootstrap_user_data = true
-
-      capacity_type        = "SPOT"
-      force_update_version = true
-      instance_types       = ["m6i.large", "m5.large", "m5n.large", "m5zn.large"]
-      labels = {
-        GithubRepo = "pos-dashboard"
-        GithubOrg  = "devops-group"
-      }
-
-      taints = [
-        {
-          key    = "dedicated"
-          value  = "gpuGroup"
-          effect = "NO_SCHEDULE"
-        }
-      ]
-
-      update_config = {
-        max_unavailable_percentage = 33 # or set `max_unavailable`
-      }
-
-      description = "EKS managed node group example launch template"
-
-      ebs_optimized           = true
-      disable_api_termination = false
-      enable_monitoring       = true
-
-      block_device_mappings = {
-        xvda = {
-          device_name = "/dev/xvda"
-          ebs = {
-            volume_size           = 75
-            volume_type           = "gp3"
-            iops                  = 3000
-            throughput            = 150
-            encrypted             = true
-            # kms_key_id            = module.ebs_kms_key.key_arn
-            delete_on_termination = true
-          }
-        }
-      }
-
-      metadata_options = {
-        http_endpoint               = "enabled"
-        http_tokens                 = "required"
-        http_put_response_hop_limit = 2
-        instance_metadata_tags      = "disabled"
-      }
-
-      create_iam_role          = true
-      iam_role_name            = "eks-managed-node-group-complete-example"
-      iam_role_use_name_prefix = false
-      iam_role_description     = "EKS managed node group complete example role"
-      iam_role_tags = {
-        Purpose = "Protector of the kubelet"
-      }
-      iam_role_additional_policies = {
-        AmazonEC2ContainerRegistryReadOnly = "arn:aws:iam::aws:policy/AmazonEC2ContainerRegistryReadOnly"
-        additional                         = aws_iam_policy.node_additional.arn
-      }
-
-      tags = {
-        ExtraTag = "EKS managed node group complete example"
-      }
-    }
-  }
-
-  tags = local.tags
-}
-
-################################################################################
-# Supporting Resources
+# VPC Module
 ################################################################################
 
 module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
-  version = "~> 4.0"
+  source = "./modules/vpc"
 
-  name = local.name
-  cidr = local.vpc_cidr
-
-  azs             = local.azs
-  private_subnets = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 4, k)]
-  public_subnets  = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 48)]
-  intra_subnets   = [for k, v in local.azs : cidrsubnet(local.vpc_cidr, 8, k + 52)]
-
-  enable_nat_gateway     = true
-  single_nat_gateway     = true
-  enable_ipv6            = true
-  create_egress_only_igw = true
-
-  public_subnet_ipv6_prefixes                    = [0, 1, 2]
-  public_subnet_assign_ipv6_address_on_creation  = true
-  private_subnet_ipv6_prefixes                   = [3, 4, 5]
-  private_subnet_assign_ipv6_address_on_creation = true
-  intra_subnet_ipv6_prefixes                     = [6, 7, 8]
-  intra_subnet_assign_ipv6_address_on_creation   = true
-
-  public_subnet_tags = {
-    "kubernetes.io/role/elb" = 1
-  }
-
-  private_subnet_tags = {
-    "kubernetes.io/role/internal-elb" = 1
-  }
-
-  tags = local.tags
+  main-region = var.main-region
+  profile     = var.profile
 }
 
-module "vpc_cni_irsa" {
-  source  = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
-  version = "~> 5.0"
+################################################################################
+# EKS Cluster Module
+################################################################################
 
-  role_name_prefix      = "VPC-CNI-IRSA"
-  attach_vpc_cni_policy = true
-  vpc_cni_enable_ipv6   = true
+module "eks" {
+  source = "./modules/eks-cluster"
+
+  main-region = var.main-region
+  profile     = var.profile
+  rolearn     = var.rolearn
+
+  vpc_id          = module.vpc.vpc_id
+  private_subnets = module.vpc.private_subnets
+}
+
+################################################################################
+# AWS ALB Controller
+################################################################################
+
+module "aws_alb_controller" {
+  source = "./modules/aws-alb-controller"
+
+  main-region  = var.main-region
+  env_name     = var.env_name
+  cluster_name = var.cluster_name
+
+  vpc_id            = module.vpc.vpc_id
+  oidc_provider_arn = module.eks.oidc_provider_arn
+}
+
+
+################################################################################
+# Sample Application Namespace
+################################################################################
+
+resource "kubernetes_namespace" "sample-application-namespace" {
+  metadata {
+    annotations = {
+      name = "sample-application"
+    }
+
+    labels = {
+      application = "sample-nginx-application"
+    }
+
+    name = "sample-application"
+  }
+}
+
+################################################################################
+# Sample Application Policy to attach to the Role
+################################################################################
+module "sample_application_iam_policy" {
+  source = "terraform-aws-modules/iam/aws//modules/iam-policy"
+
+  name        = "${var.env_name}_sample_application_policy"
+  path        = "/"
+  description = "sample Application Policy"
+
+  policy = <<EOF
+{
+  "Version": "2012-10-17",
+  "Statement": [
+    {
+      "Action": [
+        "ec2:Describe*"
+      ],
+      "Effect": "Allow",
+      "Resource": "*"
+    }
+  ]
+}
+EOF
+}
+
+################################################################################
+# Sample Application Role
+################################################################################
+module "sample_application_role" {
+  source = "terraform-aws-modules/iam/aws//modules/iam-role-for-service-accounts-eks"
+
+  role_name = "${var.env_name}_sample_application"
+  role_policy_arns = {
+    policy = module.sample_application_iam_policy.arn
+  }
 
   oidc_providers = {
     main = {
       provider_arn               = module.eks.oidc_provider_arn
-      namespace_service_accounts = ["kube-system:aws-node"]
+      namespace_service_accounts = ["sample-application:sample-application-sa"]
     }
   }
-
-  tags = local.tags
 }
-
-module "ebs_kms_key" {
-  source  = "terraform-aws-modules/kms/aws"
-  version = "~> 1.5"
-
-  description = "Customer managed key to encrypt EKS managed node group volumes"
-
-  # Policy
-  key_administrators = [
-    data.aws_caller_identity.current.arn
-  ]
-
-  key_service_roles_for_autoscaling = [
-    # required for the ASG to manage encrypted volumes for nodes
-    "arn:aws:iam::${data.aws_caller_identity.current.account_id}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling",
-    # required for the cluster / persistentvolume-controller to create encrypted PVCs
-    module.eks.cluster_iam_role_arn,
-  ]
-
-  # Aliases
-  aliases = ["eks/${local.name}/ebs"]
-
-  tags = local.tags
-}
-
-module "key_pair" {
-  source  = "terraform-aws-modules/key-pair/aws"
-  version = "~> 2.0"
-
-  key_name_prefix    = local.name
-  create_private_key = true
-
-  tags = local.tags
-}
-
-resource "aws_security_group" "remote_access" {
-  name_prefix = "${local.name}-remote-access"
-  description = "Allow remote SSH access"
-  vpc_id      = module.vpc.vpc_id
-
-  ingress {
-    description = "SSH access"
-    from_port   = 22
-    to_port     = 22
-    protocol    = "tcp"
-    cidr_blocks = ["10.0.0.0/8"]
-  }
-
-  egress {
-    from_port        = 0
-    to_port          = 0
-    protocol         = "-1"
-    cidr_blocks      = ["0.0.0.0/0"]
-    ipv6_cidr_blocks = ["::/0"]
-  }
-
-  tags = merge(local.tags, { Name = "${local.name}-remote" })
-}
-
-resource "aws_iam_policy" "node_additional" {
-  name        = "${local.name}-additional"
-  description = "Example usage of node additional policy"
-
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action = [
-          "ec2:Describe*",
-        ]
-        Effect   = "Allow"
-        Resource = "*"
-      },
-    ]
-  })
-
-  tags = local.tags
-}
-
-data "aws_ami" "eks_default" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["amazon-eks-node-${local.cluster_version}-v*"]
-  }
-}
-
-data "aws_ami" "eks_default_arm" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["amazon-eks-arm64-node-${local.cluster_version}-v*"]
-  }
-}
-
-data "aws_ami" "eks_default_bottlerocket" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["bottlerocket-aws-k8s-${local.cluster_version}-x86_64-*"]
-  }
-}
-
 
 ################################################################################
-# DEPLOY THE KEBERNETES APPS AND SERVICES
+# Sample Application Service Account
 ################################################################################
 
-variable "IMAGE_TAG" {
-  type = string
-  default = "v.1.0-43-ge4d677d7cb"
-}
-
-resource "kubernetes_namespace" "pos-dashboard-application-namespace" {
+resource "kubernetes_service_account" "service-account" {
   metadata {
-      annotations = {
-        name = "pos-dashboard-application"
-      }
-
-      labels = {
-        application = "pos-dashboard-nginx-application"
-      }
-
-      name = "pos-dashboard-application"
+    name      = "sample-application-sa"
+    namespace = kubernetes_namespace.sample-application-namespace.metadata[0].name
+    labels = {
+      "app.kubernetes.io/name" = "sample-application-sa"
+    }
+    annotations = {
+      "eks.amazonaws.com/role-arn"               = module.sample_application_role.iam_role_arn
+      "eks.amazonaws.com/sts-regional-endpoints" = "true"
+    }
   }
 }
 
-resource "kubernetes_deployment" "my_app_deployment" {
+################################################################################
+# Sample Application Deployment
+################################################################################
+
+resource "kubernetes_deployment_v1" "sample_application_deployment" {
   metadata {
-    name = "my-app-deployment"
-    namespace = kubernetes_namespace.pos-dashboard-application-namespace.metadata[0].name
+    name      = "sample-application-deployment"
+    namespace = kubernetes_namespace.sample-application-namespace.metadata[0].name
+    labels = {
+      app = "nginx"
+    }
   }
 
   spec {
@@ -363,33 +139,47 @@ resource "kubernetes_deployment" "my_app_deployment" {
 
     selector {
       match_labels = {
-        app = "my-app"
+        app = "nginx"
       }
     }
 
     template {
       metadata {
         labels = {
-          app = "my-app"
+          app = "nginx"
         }
       }
 
       spec {
+        service_account_name = kubernetes_service_account.service-account.metadata[0].name
         container {
-          name  = "frontend"
-          image = "thispama/pos-dashboard:${var.IMAGE_TAG}"
+          image = "httpd:latest"
+          name  = "apache"
 
-          port {
-            container_port = 8000
+          resources {
+            limits = {
+              cpu    = "0.5"
+              memory = "512Mi"
+            }
+            requests = {
+              cpu    = "250m"
+              memory = "50Mi"
+            }
           }
-        }
 
-        container {
-          name  = "backend"
-          image = "thispama/card-server-docker-practice:version1"
+          liveness_probe {
+            http_get {
+              path = "/"
+              port = 80
 
-          port {
-            container_port = 8080
+              http_header {
+                name  = "X-Custom-Header"
+                value = "Awesome"
+              }
+            }
+
+            initial_delay_seconds = 3
+            period_seconds        = 3
           }
         }
       }
@@ -397,164 +187,127 @@ resource "kubernetes_deployment" "my_app_deployment" {
   }
 }
 
+################################################################################
+# Sample Application Service
+################################################################################
 
-resource "kubernetes_service" "my_app_service" {
+resource "kubernetes_service_v1" "sample_application_svc" {
   metadata {
-    name = "my-app-service"
-    namespace = kubernetes_namespace.pos-dashboard-application-namespace.metadata[0].name
+    name      = "sample-application-svc"
+    namespace = kubernetes_namespace.sample-application-namespace.metadata[0].name
   }
-
   spec {
     selector = {
-      app = "my-app"
+      app = "nginx"
     }
-
+    session_affinity = "ClientIP"
     port {
-      name        = "http"
-      protocol    = "TCP"
       port        = 80
-      target_port = 8000
+      target_port = 80
     }
 
-    port {
-      name        = "http-alt"
-      protocol    = "TCP"
-      port        = 8080
-      target_port = 8080
-    }
-
-    type = "LoadBalancer"
+    type = "NodePort"
   }
 }
 
+################################################################################
+# Sample Application Ingress
+################################################################################
 
-resource "kubernetes_service" "postgres_service" {
+resource "kubernetes_ingress_v1" "sample_application_ingress" {
   metadata {
-    name = "postgres-service"
-    namespace = kubernetes_namespace.pos-dashboard-application-namespace.metadata[0].name
-  }
-
-  spec {
-    selector = {
-      app = "postgres"
-    }
-
-    port {
-      protocol    = "TCP"
-      port        = 5432
-      target_port = 5432
-    }
-  }
-}
-
-
-################################################################################
-# PROMETHEUS RESOURCE AND SERVICE
-################################################################################
-
-
-################################################################################
-# Create an Application Load Balancer
-################################################################################
-
-resource "aws_lb" "my_app_alb" {
-  name               = "my-app-alb"
-  internal           = false
-  load_balancer_type = "application"
-  security_groups    = [aws_security_group.my_app_alb_sg.id]
-  subnets            = module.vpc.public_subnets
-
-  enable_cross_zone_load_balancing   = true
-  enable_http2                       = true
-  idle_timeout                       = 60
-  enable_deletion_protection         = false
-}
-
-# Create a security group for the ALB
-resource "aws_security_group" "my_app_alb_sg" {
-  name_prefix = "my-app-alb"
-  vpc_id      = module.vpc.vpc_id
-
-  ingress {
-    from_port   = 80
-    to_port     = 80
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-}
-
-# Create a listener for the ALB
-resource "aws_lb_listener" "my_app_alb_listener" {
-  load_balancer_arn = aws_lb.my_app_alb.arn
-  port              = 80
-  protocol          = "HTTP"
-
-  default_action {
-    type             = "fixed-response"
-    fixed_response {
-      content_type = "text/plain"
-      status_code  = "200"
-      message_body = "OK"
-    }
-  }
-}
-
-# Create a target group for the frontend application
-resource "aws_lb_target_group" "my_app_target_group" {
-  name        = "my-app-target-group"
-  port        = 80
-  protocol    = "HTTP"
-  target_type = "instance"
-  vpc_id      = module.vpc.vpc_id
-}
-
-# Associate the target group with the ALB listener
-resource "aws_lb_listener_rule" "my_app_listener_rule" {
-  listener_arn = aws_lb_listener.my_app_alb_listener.arn
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.my_app_target_group.arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/", "/app"]
-    }
-  }
-}
-
-
-# Update the Kubernetes service for the frontend application
-resource "kubernetes_service" "my_app_alb_service" {
-  metadata {
-    name = "my-app-alb-service"
-    namespace = kubernetes_namespace.pos-dashboard-application-namespace.metadata[0].name
+    name      = "sample-application-ingress"
+    namespace = kubernetes_namespace.sample-application-namespace.metadata[0].name
     annotations = {
-      "service.beta.kubernetes.io/aws-load-balancer-type"         = "alb"
-      "service.beta.kubernetes.io/aws-load-balancer-ssl-ports"    = "443"
-      "service.beta.kubernetes.io/aws-load-balancer-backend-protocol" = "http"
-      # "service.beta.kubernetes.io/aws-load-balancer-ssl-cert"     =  base64decode(module.eks.cluster_certificate_authority_data)
+      "alb.ingress.kubernetes.io/scheme" = "internet-facing"
     }
   }
+
+  wait_for_load_balancer = "true"
 
   spec {
-    selector = {
-      app = "my-app"
+    ingress_class_name = "alb"
+    default_backend {
+      service {
+        name = "sample-application-svc"
+        port {
+          number = 80
+        }
+      }
     }
 
-    port {
-      name        = "http"
-      protocol    = "TCP"
-      port        = 80
-      target_port = 8000
+    rule {
+      http {
+        path {
+          backend {
+            service {
+              name = "sample-application-svc"
+              port {
+                number = 80
+              }
+            }
+          }
+
+          path = "/app1/*"
+        }
+
+      }
+    }
+
+    tls {
+      secret_name = "tls-secret"
     }
   }
+}
+
+################################################################################
+# Managed Grafana Module
+################################################################################
+
+module "managed_grafana" {
+  source = "./modules/grafana"
+
+  main-region = var.main-region
+  profile     = var.profile
+  env_name    = var.env_name
+
+  private_subnets = module.vpc.private_subnets
+  sso_admin_group_id = var.sso_admin_group_id
+}
+
+
+
+################################################################################
+# Managed Prometheus Module
+################################################################################
+
+module "prometheus" {
+  source = "./modules/prometheus"
+
+  main-region = var.main-region
+  profile     = var.profile
+  env_name    = var.env_name
+
+  cluster_name      = var.cluster_name
+  oidc_provider_arn = var.oidc_provider_arn
+  vpc_id            = module.vpc.vpc_id
+  private_subnets   = module.vpc.private_subnets
+}
+
+
+
+################################################################################
+# VPC Endpoints for Prometheus and Grafana Module
+################################################################################
+
+module "vpcendpoints" {
+  source = "./modules/vpcendpoints"
+
+  main-region = var.main-region
+  profile     = var.profile
+  env_name    = var.env_name
+
+  vpc_id                    = module.vpc.vpc_id
+  private_subnets           =  module.vpc.private_subnets
+  grafana_security_group_id = module.managed_grafana.security_group_id
 }
