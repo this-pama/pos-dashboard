@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - azure-deploy
     tags:
       - 'v*'
 
@@ -52,6 +53,19 @@ jobs:
       steps:
         - name: Deploy to QA
           run: echo "Deploying to Dev environment"
+
+        - name: Fetch tags
+          run: git fetch --prune --unshallow --tags
+
+        - name: Set env
+          run: echo "IMAGE_TAG=$(make -s name)" >> $GITHUB_ENV
+
+        - uses: azure/webapps-deploy@v2
+          with:
+            app-name: 'dev-deploy'
+            publish-profile: ${{ secrets.AZURE_PUBLISH_PROFILE_DEV }}
+            images: 'thispama/pos-dashboard:${{ env.IMAGE_TAG }}'
+
 
   deploy-staging:
       runs-on: ubuntu-latest
