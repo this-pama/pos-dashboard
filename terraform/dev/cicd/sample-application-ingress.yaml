@@ -1,11 +1,10 @@
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
-  namespace: sample-application-argocd
+  namespace: sample-application
   name: sample-application-ingress
   annotations:
-    alb.ingress.kubernetes.io/scheme: internet-facing
-    alb.ingress.kubernetes.io/target-type: instance
+    nginx.ingress.kubernetes.io/rewrite-target: /
 spec:
   ingressClassName: alb
   rules:
@@ -15,6 +14,6 @@ spec:
           pathType: Prefix
           backend:
             service:
-              name: sample-application-service
+              name: sample-application-svc
               port:
                 number: 80
