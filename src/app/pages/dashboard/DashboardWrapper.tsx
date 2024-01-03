@@ -1,6 +1,4 @@
 import {FC} from 'react'
-import {useIntl} from 'react-intl'
-import {PageTitle} from '../../../_metronic/layout/core'
 
 const DashboardPage: FC = () => (
   <>
@@ -1926,7 +1924,7 @@ const MainPage = () => {
                                 data-kt-dialer-control="input"
                                 placeholder="Amount"
                                 name="manageBudget"
-                                readOnly="readonly"
+                                readOnly={true}
                                 defaultValue={2}
                               />
                               {/*end::Input control*/}
@@ -1993,7 +1991,7 @@ const MainPage = () => {
                                 data-kt-dialer-control="input"
                                 placeholder="Amount"
                                 name="manageBudget"
-                                readOnly="readonly"
+                                readOnly={true}
                                 defaultValue={1}
                               />
                               {/*end::Input control*/}
@@ -2060,7 +2058,7 @@ const MainPage = () => {
                                 data-kt-dialer-control="input"
                                 placeholder="Amount"
                                 name="manageBudget"
-                                readOnly="readonly"
+                                readOnly={true}
                                 defaultValue={2}
                               />
                               {/*end::Input control*/}
@@ -2245,7 +2243,6 @@ const MainPage = () => {
 
 
 const DashboardWrapper: FC = () => {
-  const intl = useIntl()
   return (
     <>
       <DashboardPage />

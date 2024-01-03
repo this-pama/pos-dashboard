@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+      - unit-testing
     tags:
       - 'v*'
 
@@ -27,6 +28,15 @@ jobs:
 
       - name: Set env
         run: echo "IMAGE_TAG=$(make -s name)" >> $GITHUB_ENV
+
+      - name: Install dependencies
+        run: yarn install
+
+      - name: Run lint
+        run: yarn lint
+
+      - name: Run Unit testing
+        run: yarn test
 
       - name: Build docker image
         run: |
