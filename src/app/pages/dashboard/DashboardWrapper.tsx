@@ -52,7 +52,7 @@ const MainPage = () => {
           <div className="d-flex align-items-center gap-2 gap-lg-3">
             {/*begin::Secondary button*/}
             <a
-              href="apps/ecommerce/sales/listing.html"
+              href="#"
               className="btn btn-sm fw-bold btn-secondary"
             >
               Recent Orders
@@ -60,7 +60,7 @@ const MainPage = () => {
             {/*end::Secondary button*/}
             {/*begin::Primary button*/}
             <a
-              href="apps/ecommerce/catalog/add-product.html"
+              href="#"
               className="btn btn-sm fw-bold btn-primary"
             >
               New Product

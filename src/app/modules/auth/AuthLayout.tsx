@@ -59,11 +59,6 @@ const AuthLayout = () => {
       >
         {/* begin::Content */}
         <div className='d-flex flex-column flex-center py-15 px-5 px-md-15 w-100'>
-          {/* begin::Logo */}
-          <Link to='/' className='mb-12'>
-            <img alt='Logo' src={toAbsoluteUrl('/media/logos/custom-1.png')} className='h-75px' />
-          </Link>
-          {/* end::Logo */}
 
           {/* begin::Image */}
           <img
@@ -75,24 +70,11 @@ const AuthLayout = () => {
 
           {/* begin::Title */}
           <h1 className='text-white fs-2qx fw-bolder text-center mb-7'>
-            Fast, Efficient and Productive
+            Welcome to the Devops POS Dashboard
           </h1>
           {/* end::Title */}
 
-          {/* begin::Text */}
-          <div className='text-white fs-base text-center'>
-            In this kind of post,{' '}
-            <a href='#' className='opacity-75-hover text-warning fw-bold me-1'>
-              the blogger
-            </a>
-            introduces a person they’ve interviewed <br /> and provides some background information
-            about
-            <a href='#' className='opacity-75-hover text-warning fw-bold me-1'>
-              the interviewee
-            </a>
-            and their <br /> work following this is a transcript of the interview.
-          </div>
-          {/* end::Text */}
+          
         </div>
         {/* end::Content */}
       </div>
