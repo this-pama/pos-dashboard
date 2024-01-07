@@ -1,5 +1,4 @@
 import {useIntl} from 'react-intl'
-import {KTIcon} from '../../../../helpers'
 import {SidebarMenuItem} from './SidebarMenuItem'
 
 const SidebarMenuMain = () => {
